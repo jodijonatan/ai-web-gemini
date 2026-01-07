@@ -8,7 +8,7 @@ import './style.css';
 // Get your Gemini API key by:
 // - Selecting "Add Gemini API" in the "Firebase Studio" panel in the sidebar
 // - Or by visiting https://g.co/ai/idxGetGeminiKey
-let API_KEY = 'TODO';
+let API_KEY = 'AIzaSyCskeUeZy318t7PlBQWRpaVT74JrE15x6U';
 
 let form = document.querySelector('form');
 let promptInput = document.querySelector('input[name="prompt"]');
