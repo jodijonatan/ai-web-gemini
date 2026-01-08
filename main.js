@@ -1,14 +1,6 @@
-import { GoogleGenAI, HarmBlockThreshold, HarmCategory } from "@google/genai";
 import Base64 from 'base64-js';
 import MarkdownIt from 'markdown-it';
-import { maybeShowApiKeyBanner } from './gemini-api-banner';
 import './style.css';
-
-// 🔥🔥 FILL THIS OUT FIRST! 🔥🔥
-// Get your Gemini API key by:
-// - Selecting "Add Gemini API" in the "Firebase Studio" panel in the sidebar
-// - Or by visiting https://g.co/ai/idxGetGeminiKey
-let API_KEY = 'AIzaSyCskeUeZy318t7PlBQWRpaVT74JrE15x6U';
 
 let form = document.querySelector('form');
 let promptInput = document.querySelector('input[name="prompt"]');
@@ -25,41 +17,39 @@ form.onsubmit = async (ev) => {
       .then(r => r.arrayBuffer())
       .then(a => Base64.fromByteArray(new Uint8Array(a)));
 
-    // Assemble the prompt by combining the text with the chosen image
-    let contents = [
-      {
-        role: 'user',
-        parts: [
-          { inlineData: { mimeType: 'image/jpeg', data: imageBase64 } },
-          { text: promptInput.value }
-        ]
-      }
-    ];
-
-    // Call the multimodal model, and get a stream of results
-    const ai = new GoogleGenAI({ apiKey: API_KEY });
-    const stream = await ai.models.generateContentStream({
-      model: "gemini-2.0-flash",
-      contents,
-      safetySettings: [
-        {
-          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        },
-      ],
+    // Call the backend API
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: promptInput.value,
+        imageBase64: imageBase64,
+      }),
     });
 
-    // Read from the stream and interpret the output as markdown
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    // Read the streamed response from the backend
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
     let buffer = [];
     let md = new MarkdownIt();
-    for await (let response of stream) {
-      buffer.push(response.text);
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      const chunk = decoder.decode(value, { stream: true });
+      buffer.push(chunk);
       output.innerHTML = md.render(buffer.join(''));
     }
+
   } catch (e) {
-    output.innerHTML += '<hr>' + e;
+    output.innerHTML = `ApiError: ${e.toString().replaceAll('<', '&lt;')}`;
   }
 };
-
-// You can delete this once you've filled out an API key
-maybeShowApiKeyBanner(API_KEY);
